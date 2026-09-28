@@ -16,6 +16,11 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
   const [form, setForm] = useState<UserSearchQuery>(searchQuery);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Keep form in sync when searchQuery changes externally (e.g. from clear budget or preset selection)
+  React.useEffect(() => {
+    setForm(searchQuery);
+  }, [searchQuery]);
+
   const travelStyles: { id: TravelStyle; label: string; desc: string }[] = [
     { id: 'relaxed', label: 'Relaxed', desc: 'Slow pace, ample leisure' },
     { id: 'balanced', label: 'Balanced', desc: 'Ideal mix of highlights & downtime' },

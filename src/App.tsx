@@ -161,10 +161,10 @@ export default function App() {
     filteredDestinations = filteredDestinations.filter(d => d.tags.includes(activeTagFilter as any));
   }
 
-  // Segment by Distance
-  const nearbyDests = destinations.filter(d => d.category === 'nearby');
-  const midDests = destinations.filter(d => d.category === 'mid');
-  const farDests = destinations.filter(d => d.category === 'far');
+  // Segment by Distance using the FILTERED list so filters actually take effect
+  const nearbyDests = filteredDestinations.filter(d => d.category === 'nearby');
+  const midDests = filteredDestinations.filter(d => d.category === 'mid');
+  const farDests = filteredDestinations.filter(d => d.category === 'far');
 
   const selectedDestination = destinations.find(d => d.id === selectedDestinationId);
 
@@ -193,7 +193,23 @@ export default function App() {
           searchQuery={searchQuery}
           currency={currency}
           exchangeRate={currentExchangeRate}
-          onBack={() => setSelectedDestinationId(null)}
+          initialTab={
+            activeNavTab === 'flights'
+              ? 'flights'
+              : activeNavTab === 'stays'
+              ? 'hotels'
+              : activeNavTab === 'itinerary'
+              ? 'itinerary'
+              : activeNavTab === 'transport'
+              ? 'transit'
+              : activeNavTab === 'budget'
+              ? 'budget'
+              : 'overview'
+          }
+          onBack={() => {
+            setSelectedDestinationId(null);
+            setActiveNavTab('explore');
+          }}
           onUpdateSearchQuery={updated => {
             const next = { ...searchQuery, ...updated };
             setSearchQuery(next);

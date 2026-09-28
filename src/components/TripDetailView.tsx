@@ -28,6 +28,7 @@ interface TripDetailViewProps {
   searchQuery: UserSearchQuery;
   currency: string;
   exchangeRate: number;
+  initialTab?: 'overview' | 'flights' | 'hotels' | 'itinerary' | 'transit' | 'car' | 'budget' | 'map';
   onBack: () => void;
   onUpdateSearchQuery: (updated: Partial<UserSearchQuery>) => void;
 }
@@ -37,12 +38,19 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   searchQuery,
   currency,
   exchangeRate,
+  initialTab = 'overview',
   onBack,
   onUpdateSearchQuery
 }) => {
   const [activeTab, setActiveTab] = useState<
     'overview' | 'flights' | 'hotels' | 'itinerary' | 'transit' | 'car' | 'budget' | 'map'
-  >('overview');
+  >(initialTab);
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   const [selectedAirline, setSelectedAirline] = useState<AirlineOption | undefined>();
   const [copiedLink, setCopiedLink] = useState(false);
