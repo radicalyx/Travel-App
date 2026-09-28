@@ -1,0 +1,7 @@
+{
+  "name": "WanderSIN - AI Travel Planner & Deals from Singapore",
+  "description": "Smart travel discovery and planner from Singapore. Find where to go based on your dates, budget, and travel style with real-time flight deals, Singapore Airlines options, hotels, and dynamic day-by-day itineraries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
