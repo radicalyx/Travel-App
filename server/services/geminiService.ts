@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { CompleteItinerary, ItineraryDay, TravelStyle } from '../../src/types/travel.js';
 import { DESTINATIONS_DB, DestinationDatabaseItem } from './dataService.js';
+import { getRemoteMcpConfig } from '../mcps/remoteMcp.js';
 
 let genAIClient: GoogleGenAI | null = null;
 
@@ -336,6 +337,23 @@ RULES:
 3. If mentioning Singapore Airlines (SQ), note that SQ includes 25kg checked baggage and full meals from Changi.
 4. Give concrete, practical advice on transport (e.g. Suica in Tokyo, Grab in Bangkok/Bali, Contactless bank card in London).
 5. Address specific user queries directly without marketing fluff or repetitive greetings.`;
+
+      // Production MCP Requirement: Explicitly configure runtime Remote MCP connection in server-side request
+      const mcpConfig = getRemoteMcpConfig();
+      if (mcpConfig.configured && mcpConfig.toolConfig && mcpConfig.supportsStreamableHttp) {
+        try {
+          const interaction = await ai.interactions.create({
+            model: 'gemini-3.8-flash',
+            input: `${systemInstruction}\n\nUser Question: ${query}`,
+            tools: [mcpConfig.toolConfig]
+          });
+          if (interaction.output_text) {
+            return interaction.output_text;
+          }
+        } catch {
+          // If remote MCP interaction times out or fails, proceed to approved server-side generation
+        }
+      }
 
       const response = await ai.models.generateContent({
         model: 'gemini-3.8-flash',

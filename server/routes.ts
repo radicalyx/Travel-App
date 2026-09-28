@@ -7,7 +7,7 @@ import {
 import { getDestinationWeather } from './services/weatherService.js';
 import { getLiveCurrencyRates } from './services/currencyService.js';
 import { generateItinerary, askTravelAdvisor } from './services/geminiService.js';
-import { runMcpHealthChecks } from './mcps/index.js';
+import { runProductionHealthCheck } from './mcps/index.js';
 
 export const apiRouter = Router();
 
@@ -327,27 +327,42 @@ apiRouter.post('/travel-advisor', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/health - Developer / System MCP Health Screen
-// Dynamically runs health checks across all server/mcps modules
-// Never exposes API keys or secrets
-apiRouter.get('/health', async (_req: Request, res: Response) => {
+// GET /api/health - Production Health Check Probe
+// MCP Production Requirement #9: Checks every required production integration and reports ONLY:
+// configured: true/false
+// reachable: true/false
+// status
+// error
+// Never expose credentials.
+apiRouter.get('/health', async (req: Request, res: Response) => {
   try {
-    const healthSummary = await runMcpHealthChecks();
-    // Maintain backwards compatibility with previous integrations field while supplying full MCP metadata
-    const legacyIntegrations = healthSummary.mcps.map(mcp => ({
-      name: mcp.name,
-      status: mcp.status,
-      latencyMs: mcp.latencyMs,
-      source: mcp.provider,
-      toolsCount: mcp.toolsCount,
-      details: mcp.details
-    }));
+    const report = await runProductionHealthCheck();
 
-    res.json({
-      ...healthSummary,
-      integrations: legacyIntegrations
+    // When explicitly requested via ?details=true or ?verbose=true (e.g. from SystemHealthModal UI)
+    if (req.query.details === 'true' || req.query.verbose === 'true') {
+      return res.json({
+        configured: report.configured,
+        reachable: report.reachable,
+        status: report.status,
+        error: report.error,
+        integrations: report.integrations,
+        mcps: report.mcps
+      });
+    }
+
+    // Default production endpoint: reports ONLY the 4 fields mandated by Requirement 9
+    return res.json({
+      configured: report.configured,
+      reachable: report.reachable,
+      status: report.status,
+      error: report.error
     });
   } catch (error: any) {
-    res.status(500).json({ status: 'degraded', error: error.message });
+    res.status(500).json({
+      configured: false,
+      reachable: false,
+      status: 'unhealthy',
+      error: error?.message || 'Production health probe failed'
+    });
   }
 });
