@@ -7,6 +7,7 @@ import {
 import { getDestinationWeather } from './services/weatherService.js';
 import { getLiveCurrencyRates } from './services/currencyService.js';
 import { generateItinerary, askTravelAdvisor } from './services/geminiService.js';
+import { runMcpHealthChecks } from './mcps/index.js';
 
 export const apiRouter = Router();
 
@@ -326,24 +327,27 @@ apiRouter.post('/travel-advisor', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/health - Developer / System Health Screen (Requirement 26)
+// GET /api/health - Developer / System MCP Health Screen
+// Dynamically runs health checks across all server/mcps modules
 // Never exposes API keys or secrets
-apiRouter.get('/health', (_req: Request, res: Response) => {
-  const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 5);
+apiRouter.get('/health', async (_req: Request, res: Response) => {
+  try {
+    const healthSummary = await runMcpHealthChecks();
+    // Maintain backwards compatibility with previous integrations field while supplying full MCP metadata
+    const legacyIntegrations = healthSummary.mcps.map(mcp => ({
+      name: mcp.name,
+      status: mcp.status,
+      latencyMs: mcp.latencyMs,
+      source: mcp.provider,
+      toolsCount: mcp.toolsCount,
+      details: mcp.details
+    }));
 
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    departureHub: 'Singapore Changi Airport (SIN)',
-    integrations: [
-      { name: 'Flight Inventory & Changi Schedules', status: 'Connected', latencyMs: 14, source: 'CAAS / Changi Consolidated Feed' },
-      { name: 'Singapore Airlines Direct Data', status: 'Connected', latencyMs: 18, source: 'SQ Direct Distribution Matrix' },
-      { name: 'Accommodation Engine', status: 'Connected', latencyMs: 25, source: 'Hotel Partner Aggregator API' },
-      { name: 'Global Weather & Climate Models', status: 'Connected', latencyMs: 42, source: 'Open-Meteo & 30-year Normals' },
-      { name: 'Transit & Route Planner', status: 'Connected', latencyMs: 8, source: 'Official City Metro & Transit Authorities' },
-      { name: 'Foreign Exchange (MAS & Live FX)', status: 'Connected', latencyMs: 16, source: 'Open Exchange Rates & MAS Benchmark' },
-      { name: 'Travel Advisories & Visa Rules', status: 'Connected', latencyMs: 12, source: 'Ministry of Foreign Affairs Singapore (MFA)' },
-      { name: 'AI Itinerary & Advisor Engine', status: hasGeminiKey ? 'Connected (Gemini 3.8 Flash)' : 'Connected (Precision Engine Fallback)', latencyMs: 65, source: 'Google GenAI SDK' }
-    ]
-  });
+    res.json({
+      ...healthSummary,
+      integrations: legacyIntegrations
+    });
+  } catch (error: any) {
+    res.status(500).json({ status: 'degraded', error: error.message });
+  }
 });
