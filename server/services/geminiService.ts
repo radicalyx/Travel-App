@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { CompleteItinerary, ItineraryDay, TravelStyle } from '../../src/types/travel.js';
-import { DESTINATIONS_DB, DestinationDatabaseItem } from './dataService.js';
+import { DESTINATIONS_DB, DestinationDatabaseItem, getOrCreateDestination } from './dataService.js';
 import { getRemoteMcpConfig } from '../mcps/remoteMcp.js';
 
 let genAIClient: GoogleGenAI | null = null;
@@ -32,7 +32,7 @@ export async function generateItinerary(params: {
   carRentalRequired: boolean;
   interests?: string[];
 }): Promise<CompleteItinerary> {
-  const dest = DESTINATIONS_DB.find(d => d.id === params.destinationId) || DESTINATIONS_DB[0];
+  const dest = getOrCreateDestination(params.destinationId);
   
   const start = new Date(params.startDate);
   const end = new Date(params.endDate);

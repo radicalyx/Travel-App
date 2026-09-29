@@ -11,7 +11,8 @@ import {
   CloudSun,
   ShieldCheck,
   Share2,
-  Check
+  Check,
+  MapPin
 } from 'lucide-react';
 import { DestinationCard as IDestinationCard, UserSearchQuery, AirlineOption } from '../types/travel.js';
 import { FlightDealsSection } from './FlightDealsSection.js';
@@ -31,6 +32,7 @@ interface TripDetailViewProps {
   initialTab?: 'overview' | 'flights' | 'hotels' | 'itinerary' | 'transit' | 'car' | 'budget' | 'map';
   onBack: () => void;
   onUpdateSearchQuery: (updated: Partial<UserSearchQuery>) => void;
+  onOpenLocationModal?: () => void;
 }
 
 export const TripDetailView: React.FC<TripDetailViewProps> = ({
@@ -40,7 +42,8 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   exchangeRate,
   initialTab = 'overview',
   onBack,
-  onUpdateSearchQuery
+  onUpdateSearchQuery,
+  onOpenLocationModal
 }) => {
   const [activeTab, setActiveTab] = useState<
     'overview' | 'flights' | 'hotels' | 'itinerary' | 'transit' | 'car' | 'budget' | 'map'
@@ -102,11 +105,24 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
             {/* Destination Pill & Trip Summary */}
             <div className="flex items-center gap-2 text-xs font-mono">
-              <span className="font-bold text-amber-400">{destination.name}</span>
-              <span className="text-neutral-500">·</span>
-              <span className="text-neutral-400">{totalDays} Days ({searchQuery.departureDate})</span>
-              <span className="text-neutral-500">·</span>
-              <span className="text-neutral-400">{totalTravellers} pax</span>
+              {onOpenLocationModal ? (
+                <button
+                  type="button"
+                  onClick={onOpenLocationModal}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-950/70 border border-amber-500/40 text-amber-300 hover:bg-amber-900/50 transition-colors font-bold cursor-pointer"
+                  title="Click to select another destination"
+                >
+                  <MapPin className="h-3.5 w-3.5 text-amber-400" />
+                  <span>{destination.name}</span>
+                  <span className="text-[10px] text-amber-400/80 font-normal">Switch ▾</span>
+                </button>
+              ) : (
+                <span className="font-bold text-amber-400">{destination.name}</span>
+              )}
+              <span className="text-neutral-500 hidden sm:inline">·</span>
+              <span className="text-neutral-400 hidden sm:inline">{totalDays} Days</span>
+              <span className="text-neutral-500 hidden sm:inline">·</span>
+              <span className="text-neutral-400 hidden sm:inline">{totalTravellers} pax</span>
             </div>
 
             <button

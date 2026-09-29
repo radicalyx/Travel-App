@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import {
   DESTINATIONS_DB,
   calculateTripBudget,
-  generateFlexibleDates
+  generateFlexibleDates,
+  getOrCreateDestination
 } from './services/dataService.js';
 import { getDestinationWeather } from './services/weatherService.js';
 import { getLiveCurrencyRates } from './services/currencyService.js';
@@ -15,6 +16,9 @@ export const apiRouter = Router();
 apiRouter.get('/destinations', async (req: Request, res: Response) => {
   try {
     const {
+      destinationId,
+      location,
+      search,
       category,
       tag,
       maxBudget,
@@ -43,6 +47,25 @@ apiRouter.get('/destinations', async (req: Request, res: Response) => {
         calculatedBudget: budget
       };
     });
+
+    // Filter by specific selected destination or location query
+    const targetDest = (destinationId || location || search) as string | undefined;
+    if (targetDest && targetDest !== 'all') {
+      const q = targetDest.trim().toLowerCase();
+      results = results.filter(d =>
+        d.id.toLowerCase() === q ||
+        d.code.toLowerCase() === q ||
+        d.name.toLowerCase().includes(q) ||
+        d.country.toLowerCase().includes(q)
+      );
+
+      // If not currently in results list, resolve or dynamically create it
+      if (results.length === 0) {
+        const created = getOrCreateDestination(targetDest);
+        const budget = calculateTripBudget(created, numDays, numTravellers, 'mid', false);
+        results = [{ ...created, calculatedBudget: budget }];
+      }
+    }
 
     // Filter by category: nearby, mid, far
     if (category && category !== 'all') {
@@ -87,7 +110,7 @@ apiRouter.get('/destinations', async (req: Request, res: Response) => {
 // GET /api/flights
 apiRouter.get('/flights', (req: Request, res: Response) => {
   const { destinationId, departureDate, returnDate } = req.query;
-  const dest = DESTINATIONS_DB.find(d => d.id === destinationId) || DESTINATIONS_DB[0];
+  const dest = getOrCreateDestination((destinationId as string) || 'bangkok');
 
   res.json({
     success: true,
@@ -111,7 +134,7 @@ apiRouter.get('/flights', (req: Request, res: Response) => {
 // GET /api/flights/flexible
 apiRouter.get('/flights/flexible', (req: Request, res: Response) => {
   const { destinationId, departureDate, returnDate } = req.query;
-  const dest = DESTINATIONS_DB.find(d => d.id === destinationId) || DESTINATIONS_DB[0];
+  const dest = getOrCreateDestination((destinationId as string) || 'bangkok');
 
   const dep = (departureDate as string) || '2026-11-12';
   const ret = (returnDate as string) || '2026-11-18';
@@ -137,7 +160,7 @@ apiRouter.get('/flights/flexible', (req: Request, res: Response) => {
 // GET /api/hotels
 apiRouter.get('/hotels', (req: Request, res: Response) => {
   const { destinationId } = req.query;
-  const dest = DESTINATIONS_DB.find(d => d.id === destinationId) || DESTINATIONS_DB[0];
+  const dest = getOrCreateDestination((destinationId as string) || 'bangkok');
 
   res.json({
     success: true,
@@ -156,7 +179,7 @@ apiRouter.get('/hotels', (req: Request, res: Response) => {
 // GET /api/transit
 apiRouter.get('/transit', (req: Request, res: Response) => {
   const { destinationId } = req.query;
-  const dest = DESTINATIONS_DB.find(d => d.id === destinationId) || DESTINATIONS_DB[0];
+  const dest = getOrCreateDestination((destinationId as string) || 'bangkok');
 
   res.json({
     success: true,
@@ -170,7 +193,7 @@ apiRouter.get('/transit', (req: Request, res: Response) => {
 // GET /api/cars
 apiRouter.get('/cars', (req: Request, res: Response) => {
   const { destinationId } = req.query;
-  const dest = DESTINATIONS_DB.find(d => d.id === destinationId) || DESTINATIONS_DB[0];
+  const dest = getOrCreateDestination((destinationId as string) || 'bangkok');
 
   res.json({
     success: true,
@@ -192,7 +215,7 @@ apiRouter.get('/cars', (req: Request, res: Response) => {
 apiRouter.get('/weather', async (req: Request, res: Response) => {
   try {
     const { destinationId, date } = req.query;
-    const dest = DESTINATIONS_DB.find(d => d.id === destinationId) || DESTINATIONS_DB[0];
+    const dest = getOrCreateDestination((destinationId as string) || 'bangkok');
     const targetDate = (date as string) || new Date().toISOString().split('T')[0];
 
     const weather = await getDestinationWeather(
@@ -230,14 +253,14 @@ apiRouter.get('/currency', async (_req: Request, res: Response) => {
 // GET /api/advisories
 apiRouter.get('/advisories', (req: Request, res: Response) => {
   const { destinationId } = req.query;
-  const dest = DESTINATIONS_DB.find(d => d.id === destinationId) || DESTINATIONS_DB[0];
+  const dest = getOrCreateDestination((destinationId as string) || 'bangkok');
 
   res.json({
     success: true,
     destinationId: dest.id,
     advisory: dest.advisory,
     retrievedAt: new Date().toISOString(),
-    source: dest.advisory.source
+    source: dest.advisory?.advisoryLevel ? 'MFA Singapore Travel Advisory Feed' : 'International Consular Database'
   });
 });
 
@@ -253,7 +276,7 @@ apiRouter.post('/budget', (req: Request, res: Response) => {
       airlineIndex = 0
     } = req.body;
 
-    const dest = DESTINATIONS_DB.find(d => d.id === destinationId) || DESTINATIONS_DB[0];
+    const dest = getOrCreateDestination((destinationId as string) || 'bangkok');
     const chosenAirline = dest.flightOptions[airlineIndex] || dest.flightOptions[0];
 
     const budget = calculateTripBudget(

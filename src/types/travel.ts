@@ -18,6 +18,8 @@ export type ActivityTag =
 export interface UserSearchQuery {
   origin: string; // e.g. "SIN"
   originCity: string; // "Singapore"
+  destinationId?: string; // Selected destination ID e.g. "bangkok", "tokyo", or "all" for any
+  destinationName?: string; // Selected destination display name
   departureDate: string; // "YYYY-MM-DD"
   returnDate: string; // "YYYY-MM-DD"
   adults: number;

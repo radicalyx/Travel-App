@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
-import { Plane, Calendar, Users, DollarSign, SlidersHorizontal, Search, Sparkles, Check } from 'lucide-react';
+import { Plane, Calendar, Users, DollarSign, SlidersHorizontal, Search, Sparkles, Check, MapPin } from 'lucide-react';
 import { UserSearchQuery, TravelStyle, ActivityTag } from '../types/travel.js';
+import { LocationSelector, DESTINATION_OPTIONS } from './LocationSelector.js';
 
 interface SearchHeroProps {
   searchQuery: UserSearchQuery;
   onSearch: (newQuery: UserSearchQuery) => void;
   isLoading: boolean;
+  onOpenLocationModal?: () => void;
 }
 
 export const SearchHero: React.FC<SearchHeroProps> = ({
   searchQuery,
   onSearch,
-  isLoading
+  isLoading,
+  onOpenLocationModal
 }) => {
   const [form, setForm] = useState<UserSearchQuery>(searchQuery);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Keep form in sync when searchQuery changes externally (e.g. from clear budget or preset selection)
+  // Keep form in sync when searchQuery changes externally
   React.useEffect(() => {
     setForm(searchQuery);
   }, [searchQuery]);
@@ -50,6 +53,26 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
     setForm({ ...form, activities: updated });
   };
 
+  const handleLocationSelect = (destId: string, destName?: string) => {
+    const updated = {
+      ...form,
+      destinationId: destId === 'all' ? undefined : destId,
+      destinationName: destId === 'all' ? undefined : destName
+    };
+    setForm(updated);
+  };
+
+  const handleQuickLocationPill = (destId: string) => {
+    const dest = DESTINATION_OPTIONS.find(d => d.id === destId);
+    const updated: UserSearchQuery = {
+      ...form,
+      destinationId: destId === 'all' ? undefined : destId,
+      destinationName: dest ? `${dest.name}, ${dest.country}` : undefined
+    };
+    setForm(updated);
+    onSearch(updated);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(form);
@@ -66,17 +89,17 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
             <span>Intelligent Route & Airfare Discovery</span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-neutral-100 sm:text-4xl lg:text-5xl text-balance">
-            Where can we take you?
+            Where do you want to go?
           </h1>
           <p className="mt-2 text-sm sm:text-base text-neutral-400 max-w-2xl">
-            You don't need to pick a destination first. Enter your travel dates and preferences — we discover the best flight deals, live airline routes, and tailored itineraries from Singapore.
+            Select a specific location or leave it open to discover the best flights, seasonal deals, and tailored daily itineraries departing Singapore Changi (SIN).
           </p>
         </div>
 
         {/* Primary Search Form */}
         <form onSubmit={handleSubmit} className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 sm:p-6 shadow-xl backdrop-blur-sm">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {/* Origin Airport (Default Singapore SIN) */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+            {/* 1. Origin Airport (Singapore SIN) */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-neutral-400 flex items-center gap-1.5">
                 <Plane className="h-3.5 w-3.5 text-amber-400" />
@@ -88,7 +111,17 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
               </div>
             </div>
 
-            {/* Travel Dates: Departure */}
+            {/* 2. Destination / Location Selector */}
+            <div className="sm:col-span-1 lg:col-span-1">
+              <LocationSelector
+                selectedId={form.destinationId}
+                onSelect={handleLocationSelect}
+                onOpenModal={onOpenLocationModal}
+                label="WHERE TO"
+              />
+            </div>
+
+            {/* 3. Travel Dates: Departure */}
             <div className="space-y-1.5">
               <label htmlFor="dep-date" className="text-xs font-medium text-neutral-400 flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5 text-amber-400" />
@@ -104,7 +137,7 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
               />
             </div>
 
-            {/* Travel Dates: Return */}
+            {/* 4. Travel Dates: Return */}
             <div className="space-y-1.5">
               <label htmlFor="ret-date" className="text-xs font-medium text-neutral-400 flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5 text-amber-400" />
@@ -120,7 +153,7 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
               />
             </div>
 
-            {/* Travellers */}
+            {/* 5. Travellers */}
             <div className="space-y-1.5">
               <label htmlFor="travellers-select" className="text-xs font-medium text-neutral-400 flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5 text-amber-400" />
@@ -143,7 +176,7 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
               </select>
             </div>
 
-            {/* Approximate Total Trip Budget (Optional - Budget First) */}
+            {/* 6. Approximate Total Trip Budget (Optional) */}
             <div className="space-y-1.5">
               <label htmlFor="budget-input" className="text-xs font-medium text-neutral-400 flex items-center gap-1.5">
                 <DollarSign className="h-3.5 w-3.5 text-amber-400" />
@@ -162,6 +195,61 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
                 />
               </div>
             </div>
+          </div>
+
+          {/* Quick Location Pills Bar */}
+          <div className="mt-4 pt-3.5 border-t border-neutral-800/80 flex items-center gap-2 overflow-x-auto scrollbar-none">
+            <span className="text-[11px] font-mono text-neutral-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+              <MapPin className="h-3 w-3 text-amber-400" />
+              <span>Select Location:</span>
+            </span>
+
+            {/* Anywhere button */}
+            <button
+              type="button"
+              onClick={() => handleQuickLocationPill('all')}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors whitespace-nowrap border shrink-0 ${
+                !form.destinationId
+                  ? 'bg-amber-400 text-neutral-950 font-bold border-amber-300'
+                  : 'bg-neutral-950/80 text-neutral-300 border-neutral-800 hover:border-neutral-700 hover:text-white'
+              }`}
+            >
+              ✨ Anywhere (All)
+            </button>
+
+            {/* Individual Locations */}
+            {DESTINATION_OPTIONS.slice(0, 10).map(dest => {
+              const isActive = form.destinationId === dest.id;
+              return (
+                <button
+                  key={dest.id}
+                  type="button"
+                  onClick={() => handleQuickLocationPill(dest.id)}
+                  className={`px-2.5 py-1 text-xs rounded-md transition-colors whitespace-nowrap border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                    isActive
+                      ? 'bg-amber-400 text-neutral-950 font-bold border-amber-300'
+                      : 'bg-neutral-950/80 text-neutral-300 border-neutral-800 hover:border-neutral-700 hover:text-white'
+                  }`}
+                >
+                  <span>{dest.name}</span>
+                  <span className={`text-[10px] font-mono ${isActive ? 'text-neutral-950' : 'text-amber-400'}`}>
+                    ({dest.code})
+                  </span>
+                </button>
+              );
+            })}
+
+            {/* More Destinations / Open Modal button */}
+            {onOpenLocationModal && (
+              <button
+                type="button"
+                onClick={onOpenLocationModal}
+                className="px-2.5 py-1 text-xs rounded-md transition-colors whitespace-nowrap border shrink-0 flex items-center gap-1.5 bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20 font-semibold cursor-pointer"
+              >
+                <Sparkles className="h-3 w-3 text-amber-400" />
+                <span>+ More Locations...</span>
+              </button>
+            )}
           </div>
 
           {/* Secondary Controls Bar */}
@@ -232,14 +320,16 @@ export const SearchHero: React.FC<SearchHeroProps> = ({
             <button
               type="submit"
               disabled={isLoading}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-neutral-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors shadow-sm disabled:opacity-50 whitespace-nowrap"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-neutral-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors shadow-sm disabled:opacity-50 whitespace-nowrap cursor-pointer"
             >
               {isLoading ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-950 border-t-transparent" />
               ) : (
                 <Search className="h-4 w-4" />
               )}
-              <span>FIND MY TRIP</span>
+              <span>
+                {form.destinationId ? `SEARCH TRIPS TO ${form.destinationId.toUpperCase()}` : 'FIND MY TRIP'}
+              </span>
             </button>
           </div>
 
